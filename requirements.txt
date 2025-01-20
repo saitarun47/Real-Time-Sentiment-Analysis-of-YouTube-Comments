@@ -1,0 +1,6 @@
+requests==2.31.0
+pandas==2.0.1
+firebase-admin==6.0.0
+transformers
+tensorflow
+textblob
