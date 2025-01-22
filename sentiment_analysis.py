@@ -8,32 +8,32 @@ import os
 from dotenv import load_dotenv
 
 
-# Load environment variables from .env file
+
 load_dotenv()
 
-# Get the Firebase credentials path from the environment variable
+
 firebase_credentials_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
 
-# Initialize Firebase
+
 if not firebase_admin._apps:
     cred = credentials.Certificate(firebase_credentials_path)
     firebase_admin.initialize_app(cred)
 else:
-    app = firebase_admin.get_app()  # Get the already initialized app
+    app = firebase_admin.get_app()  
 
 # Initialize Firestore
 db = firestore.client()
 
-# Define YouTube API key and Video ID
+# YouTube API key and Video ID
 API_KEY = os.getenv("API_KEY")
 VIDEO_ID = os.getenv("VIDEO_ID")
 
-# Initialize the Hugging Face sentiment analysis pipeline (using a transformer model)
+# Initializing the Hugging Face sentiment analysis pipeline 
 sentiment_pipeline = pipeline("sentiment-analysis")
 
 # Function to perform sentiment analysis using Hugging Face transformer model
 def get_sentiment(comment):
-    # Perform sentiment analysis with the transformer model
+    
     sentiment = sentiment_pipeline(comment)
     sentiment_score = sentiment[0]['score'] if sentiment[0]['label'] == 'POSITIVE' else -sentiment[0]['score']
     
@@ -41,18 +41,18 @@ def get_sentiment(comment):
 
 # Function to fetch comments from YouTube API
 def fetch_comments():
-    # Base URL for fetching comments
+    
     base_url = f"https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId={VIDEO_ID}&maxResults=1000&key={API_KEY}"
     
-    comments_data = []  # To store all comments
-    next_page_token = None  # For pagination
+    comments_data = []  
+    next_page_token = None  
 
     while True:
-        # Construct URL with the nextPageToken if available
+        
         url = base_url + (f"&pageToken={next_page_token}" if next_page_token else "")
         response = requests.get(url).json()
 
-        # Check for errors in the response
+        
         if "error" in response:
             print("Error fetching comments:", response['error']['message'])
             break
@@ -61,13 +61,13 @@ def fetch_comments():
         for video in response.get('items', []):
             if video['kind'] == 'youtube#commentThread':
                 video_id = video['snippet']['videoId']
-                comment_id = video['id']  # Unique comment ID
+                comment_id = video['id']  
                 comment = video['snippet']['topLevelComment']['snippet']['textOriginal']
                 comments_data.append({"video_id": video_id, "comment_id": comment_id, "comment": comment})
 
-        # Check if there is a next page token
+        
         next_page_token = response.get("nextPageToken")
-        if not next_page_token:  # Exit the loop if no more pages
+        if not next_page_token:  
             break
 
     return pd.DataFrame(comments_data)
@@ -75,7 +75,7 @@ def fetch_comments():
 
 # Function to check if a comment is already stored in Firestore
 def is_comment_stored(comment_id):
-    # Query Firestore to check if the comment_id exists
+    
     comment_ref = db.collection("comments").where("comment_id", "==", comment_id).get()
     return len(comment_ref) > 0
 
@@ -83,10 +83,10 @@ def is_comment_stored(comment_id):
 def upload_to_firestore(df):
     for _, row in df.iterrows():
         if not is_comment_stored(row['comment_id']):
-            # Only add new comments
+            
             data = {
                 'video_id': row['video_id'],
-                'comment_id': row['comment_id'],  # Store the comment ID to avoid duplicates
+                'comment_id': row['comment_id'],  
                 'comment': row['comment'],
                 'sentiment_score': row['sentiment_score'],
             }
@@ -141,8 +141,8 @@ def automated_process():
     
     return sentiment_summary
 
-# Run the automated process every 5 minutes
+
 if __name__ == "__main__":
     while True:
-        sentiment_summary = automated_process()  # Execute the process
-        time.sleep(300)  # Wait for 5 minutes before running again
+        sentiment_summary = automated_process()  
+        time.sleep(300)  #  5 minutes
